@@ -7,6 +7,8 @@ from contextlib import contextmanager
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.pool import NullPool
+from sqlalchemy.exc import OperationalError
+from tenacity import retry, wait_random_exponential, stop_after_attempt, retry_if_exception_type
 
 from storage.models import (
     PipelineRun, PipelineStatus, ExtractionResult, ExtractedField,
@@ -26,6 +28,7 @@ class Database:
             poolclass=NullPool
         )
 
+    @retry(wait=wait_random_exponential(multiplier=0.5, max=5), stop=stop_after_attempt(10), retry=retry_if_exception_type(OperationalError))
     def init_db(self):
         with self.engine.begin() as conn:
             conn.execute(text("PRAGMA journal_mode=WAL;"))
@@ -94,6 +97,7 @@ class Database:
             """))
         logger.info("Database initialized successfully")
 
+    @retry(wait=wait_random_exponential(multiplier=0.5, max=5), stop=stop_after_attempt(10), retry=retry_if_exception_type(OperationalError))
     def save_pipeline_run(self, run: PipelineRun):
         with self.engine.begin() as conn:
             decision_str = None
@@ -172,6 +176,7 @@ class Database:
                         "confidence": v.confidence
                     })
 
+    @retry(wait=wait_random_exponential(multiplier=0.5, max=5), stop=stop_after_attempt(10), retry=retry_if_exception_type(OperationalError))
     def save_shipment(self, shipment: ShipmentRecord):
         with self.engine.begin() as conn:
             decision_str = shipment.decision.value if shipment.decision else None
@@ -263,6 +268,7 @@ class Database:
             results = conn.execute(text(sql_stripped)).mappings().all()
             return [dict(r) for r in results]
 
+    @retry(wait=wait_random_exponential(multiplier=0.5, max=5), stop=stop_after_attempt(10), retry=retry_if_exception_type(OperationalError))
     def update_run_status(self, run_id: str, status: PipelineStatus):
         with self.engine.begin() as conn:
             conn.execute(
