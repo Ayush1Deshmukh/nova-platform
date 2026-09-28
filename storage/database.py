@@ -6,6 +6,7 @@ from datetime import datetime
 from contextlib import contextmanager
 
 from sqlalchemy import create_engine, text
+from sqlalchemy.pool import NullPool
 
 from storage.models import (
     PipelineRun, PipelineStatus, ExtractionResult, ExtractedField,
@@ -19,10 +20,16 @@ logger = logging.getLogger(__name__)
 class Database:
     def __init__(self, db_url: str = "sqlite:///nova_platform.db"):
         connect_args = {'timeout': 15} if db_url.startswith("sqlite") else {}
-        self.engine = create_engine(db_url, connect_args=connect_args)
+        self.engine = create_engine(
+            db_url, 
+            connect_args=connect_args,
+            poolclass=NullPool
+        )
 
     def init_db(self):
         with self.engine.begin() as conn:
+            conn.execute(text("PRAGMA journal_mode=WAL;"))
+            
             conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS pipeline_runs (
                     run_id TEXT PRIMARY KEY,
