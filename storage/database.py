@@ -18,7 +18,8 @@ logger = logging.getLogger(__name__)
 
 class Database:
     def __init__(self, db_url: str = "sqlite:///nova_platform.db"):
-        self.engine = create_engine(db_url)
+        connect_args = {'timeout': 15} if db_url.startswith("sqlite") else {}
+        self.engine = create_engine(db_url, connect_args=connect_args)
 
     def init_db(self):
         with self.engine.begin() as conn:
@@ -187,9 +188,10 @@ class Database:
                 "document_count": shipment.document_count
             })
 
-            if shipment.documents:
-                for run in shipment.documents:
-                    self.save_pipeline_run(run)
+        # Process pipeline runs outside the main shipment transaction to avoid SQLite deadlock
+        if shipment.documents:
+            for run in shipment.documents:
+                self.save_pipeline_run(run)
 
     def get_pipeline_run(self, run_id: str) -> Optional[Dict]:
         with self.engine.connect() as conn:
