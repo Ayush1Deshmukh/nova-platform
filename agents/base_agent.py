@@ -39,14 +39,12 @@ class BaseAgent(ABC):
         try:
             return json.loads(text)
         except json.JSONDecodeError:
-            # Fallback: find json block
             match = re.search(r"```(?:json)?\n(.*?)\n```", text, re.DOTALL | re.IGNORECASE)
             if match:
                 try:
                     return json.loads(match.group(1).strip())
                 except json.JSONDecodeError:
                     pass
-            # Very aggressive fallback
             start = text.find('{')
             end = text.rfind('}')
             if start != -1 and end != -1:
@@ -65,18 +63,17 @@ class BaseAgent(ABC):
             if m["role"] == "system":
                 system_instruction = m["content"]
             else:
-                # user or assistant -> user or model
                 role = "user" if m["role"] == "user" else "model"
                 contents.append(types.Content(role=role, parts=[types.Part.from_text(text=m["content"])]))
                 
         return system_instruction, contents
 
     @retry(
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1.5, min=2, max=12),
+        stop=stop_after_attempt(4),
         retry=retry_if_exception_type(Exception)
     )
-    def call_llm(self, messages: List[Dict[str, Any]], model: str = "gemini-2.5-flash", response_format: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def call_llm(self, messages: List[Dict[str, Any]], model: str = "gemini-3.1-flash-lite", response_format: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         start_time = time.time()
         self.logger.info(f"Calling LLM ({model})...")
         
@@ -92,11 +89,24 @@ class BaseAgent(ABC):
             if wants_json:
                 config.response_mime_type = "application/json"
 
-            response = self.client.models.generate_content(
-                model=model,
-                contents=contents,
-                config=config
-            )
+            try:
+                response = self.client.models.generate_content(
+                    model=model,
+                    contents=contents,
+                    config=config
+                )
+            except Exception as model_err:
+                err_str = str(model_err)
+                if ("404" in err_str or "503" in err_str) and model != "gemini-3.1-flash-lite":
+                    self.logger.warning(f"Model {model} unavailable ({err_str[:60]}). Falling back to gemini-3.1-flash-lite.")
+                    response = self.client.models.generate_content(
+                        model="gemini-3.1-flash-lite",
+                        contents=contents,
+                        config=config
+                    )
+                else:
+                    raise
+
             latency = time.time() - start_time
             self.total_latency += latency
             
@@ -112,24 +122,22 @@ class BaseAgent(ABC):
             raise
 
     @retry(
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1.5, min=2, max=12),
+        stop=stop_after_attempt(4),
         retry=retry_if_exception_type(Exception)
     )
-    def call_vision_llm(self, messages: List[Dict[str, Any]], image_data_list: List[str], model: str = "gemini-2.5-flash") -> Dict[str, Any]:
+    def call_vision_llm(self, messages: List[Dict[str, Any]], image_data_list: List[str], model: str = "gemini-3.1-flash-lite") -> Dict[str, Any]:
         start_time = time.time()
         self.logger.info(f"Calling Vision LLM ({model}) with {len(image_data_list)} images...")
         
         try:
             sys_inst, contents = self._convert_messages(messages)
             
-            # Combine images and text into the last user message
             parts = []
             for b64_img in image_data_list:
                 img_bytes = base64.b64decode(b64_img)
                 parts.append(types.Part.from_bytes(data=img_bytes, mime_type="image/jpeg"))
                 
-            # Append the text from the original last message
             last_msg = contents[-1]
             for part in last_msg.parts:
                 parts.append(part)
@@ -142,11 +150,24 @@ class BaseAgent(ABC):
                 response_mime_type="application/json"
             )
 
-            response = self.client.models.generate_content(
-                model=model,
-                contents=contents,
-                config=config
-            )
+            try:
+                response = self.client.models.generate_content(
+                    model=model,
+                    contents=contents,
+                    config=config
+                )
+            except Exception as model_err:
+                err_str = str(model_err)
+                if ("404" in err_str or "503" in err_str) and model != "gemini-3.1-flash-lite":
+                    self.logger.warning(f"Model {model} unavailable ({err_str[:60]}). Falling back to gemini-3.1-flash-lite.")
+                    response = self.client.models.generate_content(
+                        model="gemini-3.1-flash-lite",
+                        contents=contents,
+                        config=config
+                    )
+                else:
+                    raise
+
             latency = time.time() - start_time
             self.total_latency += latency
             

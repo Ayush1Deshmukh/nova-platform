@@ -17,7 +17,7 @@ from config.prompts import VALIDATION_SYSTEM_PROMPT, VALIDATION_USER_PROMPT
 class ValidatorAgent(BaseAgent):
     def __init__(self):
         super().__init__(name="ValidatorAgent")
-        self.model = os.getenv("VALIDATION_MODEL", "gemini-2.5-flash")
+        self.model = os.getenv("VALIDATION_MODEL", "gemini-3.8-flash")
 
     def _local_rule_check(self, field_value: str, rule: Dict[str, Any]) -> tuple:
         match_type = rule.get("match_type", "")
@@ -84,11 +84,14 @@ class ValidatorAgent(BaseAgent):
                 rule = rule_set.get(field.field_name, {})
                 is_required = rule.get("required", False) if rule else False
                 if is_required:
+                    exp_val = rule.get("expected_value") or rule.get("allowed_values") or "see rule"
+                    if isinstance(exp_val, list):
+                        exp_val = ", ".join(str(x) for x in exp_val)
                     field_validations.append(FieldValidation(
                         field_name=field.field_name,
                         status=ValidationStatus.MISSING,
                         extracted_value=None,
-                        expected_value=rule.get("expected_value", rule.get("allowed_values", "see rule")),
+                        expected_value=str(exp_val) if exp_val else None,
                         rule_description=rule.get("description", "Required field"),
                         confidence=0.0,
                         reasoning=f"Required field '{field.field_name}' is missing from document."

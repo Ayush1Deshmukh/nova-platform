@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class CrossValidator:
     def __init__(self):
         self._client = None
-        self.model = os.getenv("VALIDATION_MODEL", "gemini-2.5-flash")
+        self.model = os.getenv("VALIDATION_MODEL", "gemini-3.8-flash")
 
     @property
     def client(self):

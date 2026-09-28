@@ -11,7 +11,7 @@ from config.prompts import EXTRACTION_SYSTEM_PROMPT, EXTRACTION_USER_PROMPT
 class ExtractorAgent(BaseAgent):
     def __init__(self):
         super().__init__(name="ExtractorAgent")
-        self.model = os.getenv("EXTRACTION_MODEL", "gemini-2.5-flash")
+        self.model = os.getenv("EXTRACTION_MODEL", "gemini-3.8-flash")
 
     def _encode_image(self, image_path: str) -> str:
         with open(image_path, "rb") as image_file:

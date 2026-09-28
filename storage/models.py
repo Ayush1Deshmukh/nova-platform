@@ -91,8 +91,8 @@ class ExtractionResult(BaseModel):
 class FieldValidation(BaseModel):
     field_name: str
     status: ValidationStatus
-    extracted_value: Optional[str] = None
-    expected_value: Optional[str] = None
+    extracted_value: Optional[Any] = None
+    expected_value: Optional[Any] = None
     rule_description: str = ""
     confidence: float = 0.0
     reasoning: str = ""

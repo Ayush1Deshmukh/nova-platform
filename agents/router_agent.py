@@ -14,7 +14,7 @@ from config.prompts import ROUTING_SYSTEM_PROMPT, ROUTING_USER_PROMPT
 class RouterAgent(BaseAgent):
     def __init__(self):
         super().__init__(name="RouterAgent")
-        self.model = os.getenv("ROUTING_MODEL", "gemini-2.5-flash")
+        self.model = os.getenv("ROUTING_MODEL", "gemini-3.8-flash")
 
     def run(self, validation: ValidationResult, thresholds: Dict[str, float] = None) -> RoutingDecision:
         start_time = time.time()
