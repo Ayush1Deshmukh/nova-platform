@@ -1,0 +1,95 @@
+{
+  "customer_id": "CUST-001",
+  "customer_name": "Meridian Global Imports",
+  "rules": {
+    "consignee_name": {
+      "expected_value": "Meridian Global Imports Ltd.",
+      "match_type": "fuzzy",
+      "fuzzy_threshold": 0.85,
+      "required": true,
+      "description": "Must match registered consignee name"
+    },
+    "hs_code": {
+      "expected_pattern": "^\\d{6,10}$",
+      "match_type": "pattern",
+      "required": true,
+      "allowed_prefixes": ["8471", "8473", "8542", "3926", "7308"],
+      "description": "Must be valid HS code with allowed commodity prefix"
+    },
+    "port_of_loading": {
+      "allowed_values": ["Shanghai", "Ningbo", "Shenzhen", "Qingdao", "Busan", "Singapore"],
+      "match_type": "list",
+      "required": true,
+      "description": "Must be an approved origin port"
+    },
+    "port_of_discharge": {
+      "allowed_values": ["Rotterdam", "Hamburg", "Felixstowe", "Antwerp", "Mumbai JNPT", "Nhava Sheva"],
+      "match_type": "list",
+      "required": true,
+      "description": "Must be an approved destination port"
+    },
+    "incoterms": {
+      "allowed_values": ["FOB", "CIF", "CFR", "EXW", "DDP", "DAP"],
+      "match_type": "list",
+      "required": true,
+      "description": "Must be a recognized Incoterm"
+    },
+    "description_of_goods": {
+      "min_length": 10,
+      "max_length": 500,
+      "match_type": "length",
+      "required": true,
+      "banned_keywords": ["sample", "gift", "personal use", "no commercial value"],
+      "description": "Must be descriptive, no undervaluation language"
+    },
+    "gross_weight": {
+      "match_type": "numeric_range",
+      "min_value": 0.1,
+      "max_value": 50000,
+      "unit": "KG",
+      "required": true,
+      "description": "Must be positive and within container limits"
+    },
+    "invoice_number": {
+      "expected_pattern": "^[A-Z]{2,4}-\\d{4,10}$",
+      "match_type": "pattern",
+      "required": true,
+      "description": "Must follow standard invoice format (PREFIX-DIGITS)"
+    },
+    "invoice_date": {
+      "match_type": "date",
+      "max_age_days": 90,
+      "required": false,
+      "description": "Invoice date must not be older than 90 days"
+    },
+    "container_number": {
+      "expected_pattern": "^[A-Z]{4}\\d{7}$",
+      "match_type": "pattern",
+      "required": false,
+      "description": "Must follow ISO 6346 container format"
+    }
+  },
+  "cross_document_rules": {
+    "consignee_must_match": {
+      "fields": ["consignee_name"],
+      "across": ["bill_of_lading", "commercial_invoice", "packing_list"],
+      "description": "Consignee name must be identical across all documents"
+    },
+    "hs_code_must_match": {
+      "fields": ["hs_code"],
+      "across": ["commercial_invoice", "packing_list"],
+      "description": "HS code must match between invoice and packing list"
+    },
+    "weight_must_match": {
+      "fields": ["gross_weight"],
+      "across": ["bill_of_lading", "packing_list"],
+      "tolerance_percent": 2.0,
+      "description": "Gross weight must match within 2% between BOL and packing list"
+    },
+    "invoice_number_must_match": {
+      "fields": ["invoice_number"],
+      "across": ["commercial_invoice", "packing_list"],
+      "description": "Invoice number must be consistent"
+    }
+  }
+}

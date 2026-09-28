@@ -1,0 +1,8 @@
+{
+  "from": "shipping@shenzhen-electronics.com",
+  "to": "verification@meridian-imports.com",
+  "subject": "Shipment Documents - PO#MGI-2024-0315 - Electronic Components",
+  "date": "2024-03-18T09:30:00Z",
+  "customer_id": "CUST-001",
+  "attachments": ["bill_of_lading.pdf", "commercial_invoice.pdf", "packing_list.pdf"]
+}

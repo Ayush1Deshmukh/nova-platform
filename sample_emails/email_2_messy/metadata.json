@@ -1,0 +1,8 @@
+{
+  "from": "docs@quickship-logistics.com",
+  "to": "verification@meridian-imports.com",
+  "subject": "RE: FWD: docs attached pls check",
+  "date": "2024-03-20T14:15:00Z",
+  "customer_id": "CUST-001",
+  "attachments": ["invoice_scan.pdf"]
+}
