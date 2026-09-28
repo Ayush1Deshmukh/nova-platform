@@ -7,6 +7,7 @@ from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
+from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
 
 from storage.models import ExtractionResult, CrossValidationResult, CrossValidation, generate_id
 from config.prompts import CROSS_VALIDATION_PROMPT
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 class CrossValidator:
     def __init__(self):
         self._client = None
-        self.model = os.getenv("VALIDATION_MODEL", "gemini-3.8-flash")
+        self.model = os.getenv("VALIDATION_MODEL", "gemini-3.1-flash-lite")
 
     @property
     def client(self):
@@ -109,6 +110,31 @@ class CrossValidator:
             summary=" ".join(summary_parts)
         )
 
+    @retry(
+        wait=wait_exponential(multiplier=1.5, min=2, max=12),
+        stop=stop_after_attempt(4),
+        retry=retry_if_exception_type(Exception)
+    )
+    def _generate_with_retry(self, contents: str, config: types.GenerateContentConfig) -> str:
+        try:
+            response = self.client.models.generate_content(
+                model=self.model,
+                contents=contents,
+                config=config
+            )
+            return response.text
+        except Exception as e:
+            err_str = str(e)
+            if ("404" in err_str or "503" in err_str) and self.model != "gemini-3.1-flash-lite":
+                logger.warning(f"CrossValidator model {self.model} unavailable ({err_str[:60]}). Falling back to gemini-3.1-flash-lite.")
+                response = self.client.models.generate_content(
+                    model="gemini-3.1-flash-lite",
+                    contents=contents,
+                    config=config
+                )
+                return response.text
+            raise
+
     def _llm_compare(self, rule_def: Dict[str, Any], values_found: Dict[str, Any]) -> tuple:
         prompt = CROSS_VALIDATION_PROMPT.format(
             rule=json.dumps(rule_def),
@@ -116,8 +142,7 @@ class CrossValidator:
         )
         
         try:
-            response = self.client.models.generate_content(
-                model=self.model,
+            response_text = self._generate_with_retry(
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     system_instruction="You are a validation assistant. Output ONLY valid JSON.",
@@ -125,7 +150,7 @@ class CrossValidator:
                     response_mime_type="application/json"
                 )
             )
-            parsed = json.loads(response.text)
+            parsed = json.loads(response_text)
             return parsed.get("is_consistent", False), parsed.get("reasoning", "No reasoning provided.")
         except Exception as e:
             logger.error(f"LLM comparison failed: {e}")
